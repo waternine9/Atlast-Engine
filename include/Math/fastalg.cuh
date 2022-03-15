@@ -1,3 +1,4 @@
+#pragma once
 #include "../includes.cuh"
 namespace Atlast
 {

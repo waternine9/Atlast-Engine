@@ -1,5 +1,5 @@
+#pragma once
 #include "../Math/math.cuh"
-#include "../macros.cuh"
 #include <vector>
 #include <string>
 #include <strstream>
@@ -31,7 +31,10 @@ namespace Atlast
 			bool reflective = false;
 			bool smooth_shading = false;
 			float reflective_index = 0.5f;
-			__host__ __device__ Triangle3D();
+			__host__ __device__ Triangle3D()
+			{
+
+			}
 			__host__ __device__ Triangle3D(Vector3<float> v0, Vector3<float> v1, Vector3<float> v2)
 			{
 				this->vertices[0] = v0;
@@ -43,7 +46,7 @@ namespace Atlast
 				this->normal = normalizef(crossf(this->vertices[2] - this->vertices[0], this->vertices[1] - this->vertices[0]));
 			}
 		};
-		
+
 		class Camera
 		{
 		public:
@@ -56,7 +59,10 @@ namespace Atlast
 				this->rot = rot;
 				this->bg_col = bg_col;
 			}
-			__host__ __device__ Camera();
+			__host__ __device__ Camera()
+			{
+
+			}
 		};
 		class Light
 		{
@@ -70,7 +76,10 @@ namespace Atlast
 				this->color = color;
 				this->intensity = intensity;
 			}
-			__host__ __device__ Light();
+			__host__ __device__ Light()
+			{
+
+			}
 		};
 		class GameObject
 		{
@@ -78,9 +87,9 @@ namespace Atlast
 			std::vector<Triangle3D> triangles;
 			std::string name;
 			Vector2<Vector3<float>> bounding;
-			bool load_from_object_file(std::string sFilename, Vector3<unsigned char> color, bool glass = false, bool reflective = false, float reflective_index = 0.0f, int texture_idx = 0, bool textured = false, bool smooth_shading = false)
+			bool load_from_object_file(std::string filename, Vector3<unsigned char> color, bool glass = false, bool reflective = false, float reflective_index = 0.0f, int texture_idx = 0, bool textured = false, bool smooth_shading = false)
 			{
-				std::ifstream f(sFilename);
+				std::ifstream f(filename);
 				if (!f.is_open())
 					return false;
 
@@ -162,13 +171,13 @@ namespace Atlast
 							uv[std::stoi(fa[1]) - 1],
 							uv[std::stoi(fb[1]) - 1],
 							uv[std::stoi(fc[1]) - 1]
-						);
+							);
 
 						triangle.normals = Vector3<Vector3<float>>(
 							normals[std::stoi(fa[2]) - 1],
 							normals[std::stoi(fb[2]) - 1],
 							normals[std::stoi(fc[2]) - 1]
-						);
+							);
 						triangle.color = color;
 						triangle.calc_normal();
 						triangle.textured = textured;
@@ -260,25 +269,16 @@ namespace Atlast
 		};
 		class Scene
 		{
-			
+
 		public:
 			std::vector<GameObject> game_objects;
 			std::vector<Light> lights;
-			Vector2<float> inv_resolution;
 			std::vector<float> boundary_data;
-			cv::Mat canvas;
-			Vector2<int> stretch_to;
 			Camera camera;
-
-			Vector3<int> color_background;
 			std::vector<Texture2D> textures;
-			bool bloom = false;
-			Scene(int CANVAS_TYPE, Vector2<int> resolution, Vector2<int> stretch_resolution_to, Camera camera, Vector3<int> color_background)
+			Scene(Camera camera)
 			{
-				this->canvas = cv::Mat::zeros(cv::Size(resolution.x, resolution.y), CANVAS_TYPE);
 				this->camera = camera;
-				this->color_background = color_background;
-				this->stretch_to = stretch_resolution_to;
 			}
 			void add_light(Light light)
 			{

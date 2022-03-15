@@ -171,6 +171,9 @@ __host__ __device__ Vector3<float> Atlast::LinearAlgebra::VectorMath::rotatef(Ve
 	v = v + center;
 	return v;
 }
+
+// intersections.cuh 
+
 __host__ __device__ void Atlast::Algorithms::point_triangle(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c, float& u, float& v, float& w)
 {
 	Vector3<float> v0 = b - a, v1 = c - a, v2 = p - a;
@@ -186,7 +189,7 @@ __host__ __device__ bool Atlast::Algorithms::ray_triangle(Vector3<float> ray_ori
 	Vector3<float> v0v2 = v2 - v0;
 	Vector3<float> pvec = crossf(ray_direction, v0v2);
 	float det = dotf(v0v1, pvec);
-	if (det < 0.00001f && det > -0.00001f) return false;
+	if (fabs(det) < 0.00001f) return false;
 	float invDet = 1.0f / det;
 
 	Vector3<float> tvec = ray_origin - v0;
@@ -198,7 +201,7 @@ __host__ __device__ bool Atlast::Algorithms::ray_triangle(Vector3<float> ray_ori
 	if (v < 0 || u + v > 1) return false;
 
 
-	t = dotf(v0v1, qvec) * invDet;
+	t = dotf(v0v2, qvec) * invDet;
 	if (t < 0) return false;
 
 	return true;

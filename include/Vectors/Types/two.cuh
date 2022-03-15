@@ -1,3 +1,4 @@
+#pragma once
 #include "../../includes.cuh"
 namespace Atlast
 {
@@ -9,17 +10,20 @@ namespace Atlast
 		public:
 			T x;
 			T y;
-			__host__ __device__ Vector2(T x, T y)
+			__host__ __device__ Vector2<T>(T x, T y)
 			{
 				this->x = x;
 				this->y = y;
 			}
-			__host__ __device__ Vector2(T x)
+			__host__ __device__ Vector2<T>(T x)
 			{
 				this->x = x;
 				this->y = x;
 			}
-			__host__ __device__ Vector2();
+			__host__ __device__ Vector2<T>()
+			{
+				// Default
+			}
 
 			__host__ __device__ void operator+=(const Vector2<T> _OTHER)
 			{

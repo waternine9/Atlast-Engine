@@ -1,3 +1,4 @@
+#pragma once
 #include "../../Vectors/vectors.cuh"
 #include "../fastalg.cuh"
 #include <math.h>
