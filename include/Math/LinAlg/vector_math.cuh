@@ -33,6 +33,9 @@ namespace Atlast
 			__host__ __device__ Vector3<double> normalize(Vector3<double> _X);
 			__host__ __device__ Vector4<double> normalize(Vector4<double> _X);
 			__host__ __device__ Vector3<float> rotatef(Vector3<float> v, Vector3<float> rotate_by, Vector3<float> center);
+			__host__ __device__ void barycentric(Vector3<float> _P, Vector3<float> a, Vector3<float> b, Vector3<float> c, float& u, float& v, float& w);
+			__host__ __device__ bool line_clip_against_plane(Vector3<float> point_on_plane, Vector3<float> plane_normal, Vector3<float> p1, Vector3<float> p2, Vector3<float>& new_vertice);
+			__host__ __device__ float signed_distance(Vector3<float> point_on_plane, Vector3<float> plane_normal, Vector3<float> vertex);
 		}
 	}
 }

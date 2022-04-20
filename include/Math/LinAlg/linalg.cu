@@ -172,6 +172,39 @@ __host__ __device__ Vector3<float> Atlast::LinearAlgebra::VectorMath::rotatef(Ve
 	return v;
 }
 
+__host__ __device__ void Atlast::LinearAlgebra::VectorMath::barycentric(Vector3<float> _P, Vector3<float> a, Vector3<float> b, Vector3<float> c, float& u, float& v, float& w)
+{
+	Vector3<float> v0 = b - a, v1 = c - a, v2 = _P - a;
+	float d00 = dotf(v0, v0);
+	float d01 = dotf(v0, v1);
+	float d11 = dotf(v1, v1);
+
+	float d20 = dotf(v2, v0);
+	float d21 = dotf(v2, v1);
+
+	float denom = 1.0 / (d00 * d11 - d01 * d01);
+	v = (d11 * d20 - d01 * d21) * denom;
+	w = (d00 * d21 - d01 * d20) * denom;
+	u = 1.0f - v - w;
+}
+
+float Atlast::LinearAlgebra::VectorMath::signed_distance(Vector3<float> point_on_plane, Vector3<float> plane_normal, Vector3<float> vertex)
+{
+	return (plane_normal.x * vertex.x + plane_normal.y * vertex.y + plane_normal.z * vertex.z - dotf(plane_normal, point_on_plane));
+}
+__host__ __device__ bool Atlast::LinearAlgebra::VectorMath::line_clip_against_plane(Vector3<float> point_on_plane, Vector3<float> plane_normal, Vector3<float> p1, Vector3<float> p2, Vector3<float>& new_vertice)
+{
+	float j1 = dotf(p1, plane_normal);
+	float j2 = dotf(p2, plane_normal);
+
+	float g = -dotf(plane_normal, point_on_plane);
+	float t = (-g - j1) / (j2 - j1);
+	if (t <= 0 || t >= 1) return false;
+	new_vertice = p1 + Vector3<float>(t) * (p2 - p1);
+	return true;
+}
+
+
 // intersections.cuh 
 
 __host__ __device__ void Atlast::Algorithms::point_triangle(Vector3<float> p, Vector3<float> a, Vector3<float> b, Vector3<float> c, float& u, float& v, float& w)

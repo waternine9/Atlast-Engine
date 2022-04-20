@@ -11,11 +11,116 @@ namespace Atlast
 {
 	namespace RenderingClasses
 	{
-		namespace HelperFuncs
+		template<class T>
+		class Node
 		{
-			int len(std::string str);
-			void split(std::string str, char seperator, std::vector<std::string>& substrings);
-		}
+		public:
+			T value;
+			Node<T>* next = NULL;
+			__host__ __device__ Node<T>* operator++()
+			{
+				return next;
+			}
+		};
+		template<class T>
+		class LinkedList
+		{
+		private:
+			Node<T>* head = NULL;
+			Node<T>* tail = NULL;
+		public:
+			__host__ __device__ LinkedList(int amount, T fill)
+			{
+				for (int i = 0;i < amount;i++)
+				{
+					this->add(fill);
+				}
+			}
+			__host__ __device__ LinkedList()
+			{
+				// Default
+			}
+			__host__ __device__ void add(T value)
+			{
+				Node<T>* temp = new Node<T>;
+				temp->value = value;
+				if (head == NULL)
+				{
+
+					this->head = temp;
+					this->tail = temp;
+				}
+				else
+				{
+					this->tail->next = temp;
+					this->tail = this->tail->next;
+				}
+			}
+			__host__ __device__ void print_float()
+			{
+				Node<T>* p = this->head;
+				while (p != NULL)
+				{
+					printf("%f ", p->value);
+					p = p->next;
+				}
+
+				printf("\n");
+			}
+			__host__ __device__ int size()
+			{
+				int cur_size = 0;
+				Node<T>* p = this->head;
+				while (p != NULL)
+				{
+					cur_size++;
+					p = p->next;
+				}
+				return cur_size;
+			}
+			__host__ __device__ Node<T>* begin()
+			{
+				return this->head;
+			}
+			__host__ __device__ Node<T>* end()
+			{
+				return this->tail;
+			}
+			__host__ __device__ Node<T>* next(int idx)
+			{
+				Node<T>* p = this->head;
+				for (int i = 0;i < idx;i++)
+				{
+					p = p->next;
+				}
+				return p;
+			}
+			__host__ __device__ void pop(Node<T>* before)
+			{
+				Node<T>* temp;
+				temp = before->next;
+				before->next = temp->next;
+				delete temp;
+
+			}
+			__host__ __device__ void concat(Node<T>* _begin)
+			{
+				this->tail->next = _begin;
+			}
+			__host__ __device__ void fill(T value)
+			{
+				Node<T>* p = this->head;
+				for (int i = 0;i < this->size();i++)
+				{
+					p->value = value;
+					p = p->next;
+				}
+			}
+			__host__ __device__ T &operator[](int idx)
+			{
+				return this->next(idx)->value;
+			}
+		};
 		class Triangle3D
 		{
 		public:
@@ -31,22 +136,17 @@ namespace Atlast
 			bool reflective = false;
 			bool smooth_shading = false;
 			float reflective_index = 0.5f;
-			__host__ __device__ Triangle3D()
-			{
-
-			}
-			__host__ __device__ Triangle3D(Vector3<float> v0, Vector3<float> v1, Vector3<float> v2)
-			{
-				this->vertices[0] = v0;
-				this->vertices[1] = v1;
-				this->vertices[2] = v2;
-			}
 			__host__ __device__ void calc_normal()
 			{
 				this->normal = normalizef(crossf(this->vertices[2] - this->vertices[0], this->vertices[1] - this->vertices[0]));
 			}
 		};
-
+		namespace HelperFuncs
+		{
+			int len(std::string str);
+			void split(std::string str, char seperator, std::vector<std::string>& substrings);
+			__global__ void _rotate(Vector3<float> rotate_by, Vector3<float> center, Triangle3D* triangles, unsigned int triangle_count);
+		}
 		class Camera
 		{
 		public:
@@ -127,8 +227,8 @@ namespace Atlast
 						{
 							tokens.push_back(bruh);
 						}
-						v.x = std::stof(tokens[1]);
-						v.y = 1.0f - std::stof(tokens[2]);
+						v.y = std::stof(tokens[1]);
+						v.x = 1.0f - std::stof(tokens[2]);
 						uv.push_back(v);
 					}
 					if (line[0] == 'v' && line[1] == 'n')
@@ -213,15 +313,20 @@ namespace Atlast
 			{
 				this->triangles.push_back(triangle);
 			}
+			
 			void rotate(Vector3<float> rotate_by, Vector3<float> center)
 			{
-				for (Triangle3D& triangle : this->triangles)
-				{
-					triangle.vertices[0] = Atlast::LinearAlgebra::VectorMath::rotatef(triangle.vertices[0], rotate_by, center);
-					triangle.vertices[1] = Atlast::LinearAlgebra::VectorMath::rotatef(triangle.vertices[1], rotate_by, center);
-					triangle.vertices[2] = Atlast::LinearAlgebra::VectorMath::rotatef(triangle.vertices[2], rotate_by, center);
-					triangle.calc_normal();
-				}
+				unsigned int size = this->triangles.size();
+				Triangle3D* dev_triangles = nullptr;
+				cudaMalloc(&dev_triangles, sizeof(Triangle3D) * size);
+				cudaMemcpy(dev_triangles, this->triangles.data(), sizeof(Triangle3D) * size, cudaMemcpyHostToDevice);
+
+				HelperFuncs::_rotate<<<(int)(this->triangles.size() * 0.0078125) + 1, 512>>>(rotate_by, center, dev_triangles, size);
+
+				cudaDeviceSynchronize();
+
+				cudaMemcpy(this->triangles.data(), dev_triangles, sizeof(Triangle3D) * size, cudaMemcpyDeviceToHost);
+				cudaFree(dev_triangles);
 				Vector3<float> min_point = Atlast::LinearAlgebra::VectorMath::rotatef(this->bounding.x, rotate_by, center);
 				Vector3<float> max_point = Atlast::LinearAlgebra::VectorMath::rotatef(this->bounding.y, rotate_by, center);
 				Vector3<float> bruh_min_point = Vector3<float>(min(min_point.x, max_point.x), min(min_point.y, max_point.y), min(min_point.z, max_point.z));
@@ -251,7 +356,7 @@ namespace Atlast
 		class Texture2D
 		{
 		public:
-			float data[1024][1024][3];
+			unsigned char data[1024][1024][3];
 			float normal_data[1024][1024][3];
 			bool albedo;
 			bool normal;
@@ -317,6 +422,127 @@ namespace Atlast
 
 				return true;
 			}
+			bool load_multiple_from_object_file(std::string sFilename, Vector3<unsigned char> color, bool glass = false, bool reflective = false, float reflective_index = 0.0f, int texture_idx = 0, bool textured = false, bool smooth_shading = false)
+			{
+				std::ifstream f(sFilename);
+				if (!f.is_open())
+					return false;
+
+				// Local cache of verts
+				std::vector<Vector3<float>> verts;
+				std::vector<Vector2<float>> uv;
+				std::vector<Vector3<float>> normals;
+				int i = -1;
+
+				GameObject cur_game_object;
+				bool passed;
+				while (!f.eof())
+				{
+					char line[128];
+					f.getline(line, 128);
+
+					std::strstream s;
+					s << line;
+
+					char junk;
+					if (line[0] == 'o')
+					{
+						if (passed)
+						{
+							cur_game_object.calculate_aabb();
+							this->game_objects.push_back(cur_game_object);
+						}
+						GameObject new_object;
+
+						s >> junk >> new_object.name;
+						cur_game_object = new_object;
+
+						passed = true;
+					}
+					if (line[0] == 'v' && line[1] == ' ')
+					{
+						Vector3<float> v;
+						s >> junk >> v.x >> v.y >> v.z;
+
+						verts.push_back(v);
+					}
+					if (line[0] == 'v' && line[1] == 't')
+					{
+						Vector2<float> v;
+						std::string line_str(line);
+						std::stringstream check1(line_str);
+						std::string bruh;
+						std::vector<std::string> tokens;
+						while (std::getline(check1, bruh, ' '))
+						{
+							tokens.push_back(bruh);
+						}
+						v.y = std::stof(tokens[1]);
+						v.x = 1.0f - std::stof(tokens[2]);
+						uv.push_back(v);
+					}
+					if (line[0] == 'v' && line[1] == 'n')
+					{
+						Vector3<float> v;
+						std::string line_str(line);
+						std::stringstream check1(line_str);
+						std::string bruh;
+						std::vector<std::string> tokens;
+						while (std::getline(check1, bruh, ' '))
+						{
+							tokens.push_back(bruh);
+						}
+						v.x = std::stof(tokens[1]);
+						v.y = std::stof(tokens[2]);
+						v.z = std::stof(tokens[3]);
+						normals.push_back(v);
+					}
+					if (line[0] == 'f')
+					{
+						i++;
+						std::vector<std::string> fa;
+						std::vector<std::string> fb;
+						std::vector<std::string> fc;
+						std::string f2;
+						std::string f3;
+						std::string f4;
+
+						s >> junk >> f2 >> f3 >> f4;
+						HelperFuncs::split(f2, '/', fa);
+						HelperFuncs::split(f3, '/', fb);
+						HelperFuncs::split(f4, '/', fc);
+
+
+						Triangle3D triangle;
+						triangle.vertices[0] = verts[std::stoi(fa[0]) - 1];
+						triangle.vertices[1] = verts[std::stoi(fb[0]) - 1];
+						triangle.vertices[2] = verts[std::stoi(fc[0]) - 1];
+						triangle.uv = Vector3<Vector2<float>>(
+							uv[std::stoi(fa[1]) - 1],
+							uv[std::stoi(fb[1]) - 1],
+							uv[std::stoi(fc[1]) - 1]
+							);
+						triangle.normals = Vector3<Vector3<float>>(
+							normals[std::stoi(fa[2]) - 1],
+							normals[std::stoi(fb[2]) - 1],
+							normals[std::stoi(fc[2]) - 1]
+							);
+						triangle.color = color;
+						triangle.calc_normal();
+						triangle.textured = textured;
+						triangle.texture_idx = texture_idx;
+						triangle.glass = glass;
+						triangle.reflective = reflective;
+						triangle.reflective_index = reflective_index;
+
+						triangle.smooth_shading = smooth_shading;
+						cur_game_object.push_back_triangle(triangle);
+					}
+				}
+				cur_game_object.calculate_aabb();
+				this->game_objects.push_back(cur_game_object);
+				return true;
+			}
 			void load_gameobjects_from_vector(std::vector<GameObject> game_objects)
 			{
 				for (GameObject game_object : game_objects)
@@ -362,6 +588,22 @@ namespace Atlast
 				}
 				return triangles;
 			}
+			std::vector<Triangle3D> project_render_setup(std::vector<Triangle3D> input_triangles, Vector3<float> resolution_halved)
+			{
+				std::vector<Triangle3D> triangles;
+				for (Triangle3D triangle : input_triangles)
+				{
+					float inv_z = 1.0f / triangle.vertices[0].z;
+					triangle.vertices[0] = triangle.vertices[0] * Vector3<float>(inv_z, inv_z, 1) * Vector3<float>(resolution_halved.x, resolution_halved.y, resolution_halved.x) + Vector3<float>(resolution_halved.x, resolution_halved.y, 0);
+					inv_z = 1.0f / triangle.vertices[1].z;
+					triangle.vertices[1] = triangle.vertices[1] * Vector3<float>(inv_z, inv_z, 1) * Vector3<float>(resolution_halved.x, resolution_halved.y, resolution_halved.x) + Vector3<float>(resolution_halved.x, resolution_halved.y, 0);
+					inv_z = 1.0f / triangle.vertices[2].z;
+					triangle.vertices[2] = triangle.vertices[2] * Vector3<float>(inv_z, inv_z, 1) * Vector3<float>(resolution_halved.x, resolution_halved.y, resolution_halved.x) + Vector3<float>(resolution_halved.x, resolution_halved.y, 0);
+					triangles.push_back(triangle);
+				}
+				return triangles;
+			}
 		};
+		
 	}
 }

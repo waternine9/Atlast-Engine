@@ -1,0 +1,41 @@
+﻿  Compiling CUDA source file atlast.cuh...
+  
+  C:\Users\arthu\source\repos\Atlast Engine\Atlast Engine>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.4\include"  -G   --keep-dir x64\Debug  -maxrregcount=0  --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /Fdx64\Debug\vc142.pdb /FS /Zi /RTC1 /MDd " -o x64\Debug\atlast.cuh.obj "C:\Users\arthu\source\repos\Atlast Engine\Atlast Engine\atlast.cuh" 
+  atlast.cuh
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(26): warning C4244: 'return': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(30): warning C4244: 'return': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(34): warning C4244: 'return': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(98): warning C4244: 'argument': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(102): warning C4244: 'argument': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\vector_math.cuh(106): warning C4244: 'argument': conversion from 'T' to 'float', possible loss of data
+          with
+          [
+              T=double
+          ]
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\intersections.cuh(48): warning C4804: '>': unsafe use of type 'bool' in operation
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\intersections.cuh(49): warning C4804: '<': unsafe use of type 'bool' in operation
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\intersections.cuh(64): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\arthu\source\repos\atlast engine\atlast engine\Math\LinAlg\intersections.cuh(70): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+     Creating library C:\Users\arthu\source\repos\Atlast Engine\x64\Debug\Atlast Engine.lib and object C:\Users\arthu\source\repos\Atlast Engine\x64\Debug\Atlast Engine.exp
+MSVCRTD.lib(exe_main.obj) : error LNK2019: unresolved external symbol main referenced in function "int __cdecl invoke_main(void)" (?invoke_main@@YAHXZ)
+C:\Users\arthu\source\repos\Atlast Engine\x64\Debug\Atlast Engine.exe : fatal error LNK1120: 1 unresolved externals
