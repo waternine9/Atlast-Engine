@@ -1,1 +1,2 @@
-#define _ATLAST_VERSION "2.0.0"
+#pragma once
+#define _ATLAST_VERSION "2.1.0"
