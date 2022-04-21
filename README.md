@@ -1,7 +1,7 @@
 # Atlast Engine
  At last, a good engine.
 
-This is a GPU rasterizer capable of rendering up to 40 million triangles at 30 fps.
+This is a GPU rasterizer capable of rendering up to 40 million triangles at 30 fps, shaded clipped and textured.
 
 # Requirements
 
