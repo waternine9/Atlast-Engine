@@ -1,6 +1,7 @@
 # Atlast Engine
  At last, a good engine.
-In all seriousness though, this is an engine which cannot even render yet, it's in its pre-alpha stage which only supports a normal vector library and functions, while everything being CUDA compatible.
+
+This is a GPU rasterizer capable of rendering up to 4 million triangles at 30 fps.
 
 # Requirements
 
