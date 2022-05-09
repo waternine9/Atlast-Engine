@@ -3,10 +3,10 @@
 
 This is a GPU rasterizer capable of rendering up to 40 million triangles at 30 fps, shaded clipped and textured.
 
-# Requirements
+# Dependencies
 
 - CUDA
-- OpenCV v4.5.3
+- SFML 2.5
 
 # How do I use this?
 
