@@ -6,7 +6,10 @@
 #include <sstream>
 #include <iostream>
 #include <fstream>
-#include <opencv2/opencv.hpp>
+#include <SFML/Window.hpp>
+#include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+#include <SFML/Network.hpp>
 namespace Atlast
 {
 	namespace RenderingClasses
@@ -126,11 +129,12 @@ namespace Atlast
 		public:
 			int texture_idx = 0;
 			bool textured = false;
+			bool unlit = false;
 			bool glass = false;
 			bool reflective = false;
 			bool smooth_shading = false;
 			float reflective_index = 0.5f;
-			Vector3<unsigned char> color;
+			Atlast::Vectors::Vector3<unsigned char> color;
 		};
 		class Triangle3D
 		{
@@ -143,10 +147,34 @@ namespace Atlast
 			unsigned int uv2;
 			unsigned int material_idx;
 		};
+		class ProtoFragment
+		{
+		public:
+			float u;
+			float v;
+			float w;
+			float lum1;
+			float lum2;
+			float lum3;
+			unsigned int i0;
+			unsigned int i1;
+			unsigned int i2;
+			unsigned int material_idx;
+		};
 		class PopulatedTriangle3D
 		{
 		public:
-			Vector3<float> vertices[3];
+			Atlast::Vectors::Vector3<float> vertices[3];
+			Atlast::Vectors::Vector3<float> old_vertices[3];
+			Atlast::Vectors::Vector2<float> uv[3];
+			Atlast::Vectors::Vector3<float> normal;
+			Atlast::Vectors::Vector3<float> B0;
+			Atlast::Vectors::Vector3<float> B1;
+			int material_idx;
+			float denom;
+			float d00;
+			float d01;
+			float d11;
 		};
 		namespace HelperFuncs
 		{
@@ -156,10 +184,10 @@ namespace Atlast
 		class Camera
 		{
 		public:
-			Vector3<float> pos;
-			Vector3<float> rot;
-			Vector3<unsigned char> bg_col;
-			__host__ __device__ Camera(Vector3<float> pos, Vector3<float> rot, Vector3<unsigned char> bg_col)
+			Atlast::Vectors::Vector3<float> pos;
+			Atlast::Vectors::Vector3<float> rot;
+			Atlast::Vectors::Vector3<unsigned char> bg_col;
+			__host__ __device__ Camera(Atlast::Vectors::Vector3<float> pos, Atlast::Vectors::Vector3<float> rot, Atlast::Vectors::Vector3<unsigned char> bg_col)
 			{
 				this->pos = pos;
 				this->rot = rot;
@@ -173,10 +201,10 @@ namespace Atlast
 		class Light
 		{
 		public:
-			Vector3<float> pos;
-			Vector3<unsigned char> color;
+			Atlast::Vectors::Vector3<float> pos;
+			Atlast::Vectors::Vector3<float> color;
 			float intensity;
-			__host__ __device__ Light(Vector3<float> pos, Vector3<unsigned char> color, float intensity)
+			__host__ __device__ Light(Atlast::Vectors::Vector3<float> pos, Atlast::Vectors::Vector3<float> color, float intensity)
 			{
 				this->pos = pos;
 				this->color = color;
@@ -200,12 +228,12 @@ namespace Atlast
 		class Texture2D
 		{
 		public:
-			unsigned char data[1024][1024][3];
-			float normal_data[1024][1024][3];
-			bool albedo;
-			bool normal;
+			unsigned char data[1024 * 1024 * 3];
+			float normal_data[1024 * 1024 * 3];
+			bool albedo = false;
+			bool normal = false;
 			float repeating = 1;
-			Vector2<int> offset;
+			Atlast::Vectors::Vector2<int> offset;
 			__host__ __device__ Texture2D(bool albedo, bool normal)
 			{
 				this->normal = normal;
@@ -222,14 +250,80 @@ namespace Atlast
 		public:
 			std::vector<GameObject> game_objects;
 			std::vector<Light> lights;
+			std::vector<Texture2D> textures;
+			std::vector<Material> materials;
 			std::vector<float> unique_verts;
 			std::vector<float> unique_uv;
-			std::vector<float> boundary_data;
-			Camera camera;
-			std::vector<Texture2D> textures;
-			Scene(Camera camera)
+			int triangle_count;
+			sf::RenderWindow window;
+			Triangle3D* dev_triangles = nullptr;
+			Material* dev_materials;
+			Texture2D* dev_textures = nullptr;
+			Light* dev_lights = nullptr;
+			float* dev_verts;
+			float* dev_uvs;
+			
+
+			Scene() 
 			{
-				this->camera = camera;
+				this->window.create(sf::VideoMode(512, 512), "Atlast Engine");
+			};
+			~Scene()
+			{
+				this->window.close();
+				this->free();
+			}
+			void create_window(unsigned int resolution_x, unsigned int resolution_y, std::string title, bool fullscreen)
+			{
+				this->window.create(sf::VideoMode(resolution_x, resolution_y), title);
+			}
+			void poll_events()
+			{
+				sf::Event event;
+				while (this->window.pollEvent(event))
+				{
+					if (event.type == sf::Event::Closed)
+					{
+						this->window.close();
+					}
+				}
+			}
+			Atlast::Vectors::Vector2<int> get_mouse_pos()
+			{
+				sf::Vector2i position = sf::Mouse::getPosition() - this->window.getPosition();
+				return Atlast::Vectors::Vector2<int>(position.x, position.y);
+			}
+			void update(unsigned char* buffer)
+			{
+				
+				sf::Texture texture;
+				
+
+				sf::Vector2u window_size = this->window.getSize();
+
+				sf::Image render_image;
+				render_image.create(window_size.x, window_size.y);
+
+				for (int y = 0;y < window_size.y;y++)
+				{
+					for (int x = 0;x < window_size.x;x++)
+					{
+						render_image.setPixel(x, y, sf::Color(buffer[(x + y * window_size.x) * 3], buffer[(x + y * window_size.x) * 3 + 1], buffer[(x + y * window_size.x) * 3 + 2]));
+						buffer[(x + y * window_size.x) * 3] = 0;
+						buffer[(x + y * window_size.x) * 3 + 1] = 0;
+						buffer[(x + y * window_size.x) * 3 + 2] = 0;
+					}
+				}
+				texture.loadFromImage(render_image);
+				
+
+				sf::Sprite render_sprite(texture);
+				render_sprite.setTextureRect(sf::IntRect(0, 0, window_size.x, window_size.y));
+				
+				this->window.clear();
+				this->window.draw(render_sprite);
+				this->window.display();
+				
 			}
 			void add_light(Light light)
 			{
@@ -243,7 +337,39 @@ namespace Atlast
 			{
 				this->lights[idx] = new_light;
 			}
-			bool load_lights_from_object_file(std::string sFilename, Vector3<unsigned char> color, float intensity)
+			void compile()
+			{
+				std::vector<Triangle3D> triangles = this->render_setup();
+				cudaMalloc(&this->dev_triangles, sizeof(Triangle3D) * triangles.size());
+				cudaMemcpy(this->dev_triangles, triangles.data(), sizeof(Triangle3D) * triangles.size(), cudaMemcpyHostToDevice);
+
+				cudaMalloc(&this->dev_materials, sizeof(Material) * materials.size());
+				cudaMemcpy(this->dev_materials, materials.data(), sizeof(Material) * materials.size(), cudaMemcpyHostToDevice);
+
+
+				cudaMalloc(&this->dev_verts, sizeof(float) * this->unique_verts.size());
+				cudaMemcpy(this->dev_verts, this->unique_verts.data(), sizeof(float) * this->unique_verts.size(), cudaMemcpyHostToDevice);
+
+				cudaMalloc(&this->dev_uvs, sizeof(float) * this->unique_uv.size());
+				cudaMemcpy(this->dev_uvs, this->unique_uv.data(), sizeof(float) * this->unique_uv.size(), cudaMemcpyHostToDevice);
+
+
+				cudaMalloc(&this->dev_textures, (sizeof(Texture2D)) * this->textures.size());
+				cudaMemcpy(this->dev_textures, this->textures.data(), (sizeof(Texture2D)) * this->textures.size(), cudaMemcpyHostToDevice);
+
+				cudaMalloc(&this->dev_lights, sizeof(Light) * this->lights.size());
+				cudaMemcpy(this->dev_lights, this->lights.data(), sizeof(Light) * this->lights.size(), cudaMemcpyHostToDevice);
+			}
+			void free()
+			{
+				cudaFree(this->dev_triangles);
+				cudaFree(this->dev_materials);
+				cudaFree(this->dev_verts);
+				cudaFree(this->dev_uvs);
+				cudaFree(this->dev_textures);
+				cudaFree(this->dev_lights);
+			}
+			bool load_lights_from_object_file(std::string sFilename, Atlast::Vectors::Vector3<float> color, float intensity)
 			{
 				std::ifstream f(sFilename);
 				if (!f.is_open())
@@ -260,7 +386,7 @@ namespace Atlast
 
 					if (line[0] == 'v')
 					{
-						Vector3<float> v;
+						Atlast::Vectors::Vector3<float> v;
 						s >> junk >> v.x >> v.y >> v.z;
 						this->lights.push_back(Light(v, color, intensity));
 					}
@@ -268,19 +394,24 @@ namespace Atlast
 
 				return true;
 			}
-			bool load_multiple_from_object_file(std::string sFilename, unsigned int material_idx)
+			bool load_multiple_from_object_file(std::string sFilename, unsigned int material_idx, Atlast::Vectors::Vector3<float> translate)
 			{
 				std::ifstream f(sFilename);
 				if (!f.is_open())
 					return false;
 
 				// Local cache of verts
-				std::vector<Vector3<float>> verts;
-				std::vector<Vector2<float>> uv;
+				std::vector<Atlast::Vectors::Vector3<float>> verts;
+				std::vector<Atlast::Vectors::Vector2<float>> uv;
 				int i = -1;
 
 				GameObject cur_game_object;
 				bool passed;
+				unsigned int size = this->unique_verts.size() / 3;
+
+				unsigned int uv_size = this->unique_uv.size() / 2;
+
+				
 				while (!f.eof())
 				{
 					char line[128];
@@ -305,16 +436,16 @@ namespace Atlast
 					}
 					if (line[0] == 'v' && line[1] == ' ')
 					{
-						Vector3<float> v;
+						Atlast::Vectors::Vector3<float> v;
 						s >> junk >> v.x >> v.y >> v.z;
 
-						this->unique_verts.push_back(v.x);
-						this->unique_verts.push_back(v.y);
-						this->unique_verts.push_back(v.z);
+						this->unique_verts.push_back(v.x + translate.x);
+						this->unique_verts.push_back(v.y + translate.y);
+						this->unique_verts.push_back(v.z + translate.z);
 					}
 					if (line[0] == 'v' && line[1] == 't')
 					{
-						Vector2<float> v;
+						Atlast::Vectors::Vector2<float> v;
 						std::string line_str(line);
 						std::stringstream check1(line_str);
 						std::string bruh;
@@ -343,12 +474,12 @@ namespace Atlast
 
 
 						Triangle3D triangle;
-						triangle.i0 = std::stoi(fa[0]) - 1;
-						triangle.i1 = std::stoi(fb[0]) - 1;
-						triangle.i2 = std::stoi(fc[0]) - 1;
-						triangle.uv0 = std::stoi(fa[1]) - 1;
-						triangle.uv1 = std::stoi(fb[1]) - 1;
-						triangle.uv2 = std::stoi(fc[1]) - 1;
+						triangle.i0 = std::stoi(fa[0]) - 1 + size;
+						triangle.i1 = std::stoi(fb[0]) - 1 + size;
+						triangle.i2 = std::stoi(fc[0]) - 1 + size;
+						triangle.uv0 = std::stoi(fa[1]) - 1 + uv_size;
+						triangle.uv1 = std::stoi(fb[1]) - 1 + uv_size;
+						triangle.uv2 = std::stoi(fc[1]) - 1 + uv_size;
 						triangle.material_idx = material_idx;
 						cur_game_object.push_back_triangle(triangle);
 					}
@@ -374,10 +505,12 @@ namespace Atlast
 			std::vector<Triangle3D> render_setup()
 			{
 				std::vector<Triangle3D> triangles;
+				this->triangle_count = 0;
 				for (GameObject& game_object : this->game_objects)
 				{
 					std::vector<Triangle3D> game_object_triangles = game_object.triangles;
 					triangles.insert(triangles.end(), game_object_triangles.begin(), game_object_triangles.end());
+					this->triangle_count += game_object_triangles.size();
 				}
 				return triangles;
 			}
